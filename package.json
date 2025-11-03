@@ -1,1 +1,14 @@
-{ "name": "infinityleakbot", "version": "1.0.0", "description": "", "main": "index.js", "scripts": { "test": "echo \"Error: no test specified\" && exit 1" }, "keywords": [], "author": "", "license": "ISC", "type": "module" }
+{
+  "name": "infinityleakbot",
+  "version": "1.0.0",
+  "description": "Discord bot running on Render",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.15.3",
+    "dotenv": "^16.4.5"
+  }
+}
