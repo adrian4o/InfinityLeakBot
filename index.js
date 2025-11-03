@@ -4,8 +4,7 @@ import {
   EmbedBuilder,
   REST,
   Routes,
-  SlashCommandBuilder,
-  PermissionFlagsBits
+  SlashCommandBuilder
 } from "discord.js";
 import dotenv from "dotenv";
 import fs from "fs";
@@ -15,15 +14,14 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages]
 });
 
-client.once("clientReady", () => {
+client.once("ready", () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
 // Define /leak command
 const leakCommand = new SlashCommandBuilder()
   .setName("leak")
-  .setDescription("Post a new Infinity Leak embed (Admins only)")
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+  .setDescription("Post a new Infinity Leak embed (Leakers only)")
   .addStringOption(opt =>
     opt.setName("name").setDescription("Resource name").setRequired(true)
   )
@@ -40,34 +38,43 @@ const leakCommand = new SlashCommandBuilder()
     opt.setName("image").setDescription("Image URL (optional)").setRequired(false)
   );
 
-// Register the command instantly in your server
+// Register the command instantly
 async function registerGuildCommand() {
   const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
   try {
-    console.log("⏳ Registering /leak command to your server...");
+    console.log("⏳ Registering /leak command...");
     await rest.put(
       Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
       { body: [leakCommand.toJSON()] }
     );
-    console.log("✅ /leak command registered instantly!");
+    console.log("✅ /leak command registered!");
   } catch (err) {
     console.error("❌ Error registering command:", err);
   }
 }
 registerGuildCommand();
 
-// Handle the /leak command
-client.on("interactionCreate", async (interaction) => {
+// Handle /leak command
+client.on("interactionCreate", async interaction => {
   if (!interaction.isChatInputCommand() || interaction.commandName !== "leak") return;
 
-  // Only allow admins
-  if (!interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
-    return await interaction.reply({
-      content: "❌ You don’t have permission to use this command.",
+  // ✅ Check for Leaker role
+  const leakerRole = interaction.guild.roles.cache.find(r => r.name === "Leaker");
+  if (!leakerRole) {
+    return interaction.reply({
+      content: "⚠️ The `Leaker` role doesn’t exist in this server!",
       ephemeral: true
     });
   }
 
+  if (!interaction.member.roles.cache.has(leakerRole.id)) {
+    return interaction.reply({
+      content: "🚫 Only members with the **Leaker** role can use this command.",
+      ephemeral: true
+    });
+  }
+
+  // Get command data
   const resourceName = interaction.options.getString("name");
   const description = interaction.options.getString("description");
   const previewLink = interaction.options.getString("preview");
@@ -83,9 +90,9 @@ client.on("interactionCreate", async (interaction) => {
     })
     .setDescription(
       `**@everyone @here**\n\n` +
-        `**${resourceName}**\n${description}\n\n` +
-        `**[PREVIEW]:** [CLICK ME](${previewLink})\n` +
-        `**[DOWNLOAD]:** [CLICK ME](${downloadLink})`
+      `**${resourceName}**\n${description}\n\n` +
+      `**[PREVIEW]:** [CLICK ME](${previewLink})\n` +
+      `**[DOWNLOAD]:** [CLICK ME](${downloadLink})`
     )
     .setFooter({
       text: "Infinity Leak © 2025",
@@ -95,12 +102,12 @@ client.on("interactionCreate", async (interaction) => {
 
   if (imageLink) embed.setImage(imageLink);
 
-  // Send embed + ping
-await interaction.reply({
-  content: "@everyone @here",
-  embeds: [embed],
-  allowedMentions: { parse: ["everyone"] }
-});
+  // Send embed
+  await interaction.reply({
+    content: "@everyone @here",
+    embeds: [embed],
+    allowedMentions: { parse: ["everyone"] }
+  });
 
   // Log to file
   const log = `[${new Date().toLocaleString()}] ${interaction.user.tag} posted: ${resourceName}\nDescription: ${description}\nPreview: ${previewLink}\nDownload: ${downloadLink}\nImage: ${imageLink || "none"}\n\n`;
@@ -109,3 +116,5 @@ await interaction.reply({
 });
 
 client.login(process.env.TOKEN);
+
+
